@@ -3,669 +3,270 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="theme-color" content="#4CAF50">
-<link rel="manifest" href="manifest.json">
-  <title>🧵 糸でんわ 📞 WebRTC</title>
+  <title> 🧵 糸でんわ 📞</title>
+  <link rel="manifest" href="manifest.json">
   <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: sans-serif;
-      text-align: center;
-      padding: 15px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       background-color: #f4f4f9;
-      margin: 0;
-    }
-    .card {
-      background: white;
-      padding: 20px;
-      border-radius: 12px;
-      max-width: 400px;
-      margin: 0 auto;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-    }
-    input, button {
-      padding: 10px;
-      margin: 6px 0;
-      border-radius: 6px;
-      border: 1px solid #ccc;
-      font-size: 15px;
-      box-sizing: border-box;
-    }
-    .room-input {
-      width: 100%;
-    }
-    .btn {
-      background-color: #4CAF50;
-      color: white;
-      border: none;
-      cursor: pointer;
-      font-weight: bold;
-      width: 100%;
-    }
-    #status {
-      margin: 10px 0;
-      font-weight: bold;
       color: #333;
-      word-break: break-all;
-      font-size: 14px;
-    }
-
-    /* 通話コントロール */
-    .controls {
-      margin-bottom: 10px;
-    }
-    .mute-btn {
-      background-color: #ff9800;
-      color: white;
-      border: none;
-      padding: 8px 16px;
-      border-radius: 6px;
-      font-weight: bold;
-      cursor: pointer;
-      width: 100%;
-    }
-    .mute-btn.muted {
-      background-color: #f44336;
-    }
-
-    /* チャット表示エリア */
-    #chatBox {
-      height: 220px;
-      border: 1px solid #ddd;
-      border-radius: 8px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
       padding: 10px;
-      overflow-y: auto;
-      background: #fafafa;
-      text-align: left;
-      margin-bottom: 10px;
-      font-size: 14px;
     }
-    .msg {
-      margin: 8px 0;
-      padding: 8px 12px;
-      border-radius: 8px;
-      max-width: 80%;
-      word-break: break-word;
+    .container {
+      background: white;
+      width: 100%;
+      max-width: 420px;
+      padding: 20px;
+      border-radius: 16px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
     }
-    .msg.me {
-      background-color: #dcf8c6;
-      margin-left: auto;
-      text-align: right;
-    }
-    .msg.peer {
-      background-color: #ffffff;
-      border: 1px solid #eee;
-      margin-right: auto;
-      text-align: left;
-    }
-    /* 受信・送信画像スタイル */
-    .chat-img-container {
-      display: inline-block;
+    h1 {
+      font-size: 1.3rem;
       text-align: center;
+      color: #333;
     }
-    .chat-img {
-      max-width: 100%;
-      max-height: 150px;
-      border-radius: 6px;
-      cursor: pointer;
-      display: block;
-      margin-bottom: 4px;
+    input {
+      width: 100%;
+      padding: 10px;
+      font-size: 1rem;
       border: 1px solid #ccc;
-    }
-    .save-btn {
-      display: inline-block;
-      padding: 4px 8px;
-      font-size: 12px;
-      background-color: #2196F3;
-      color: white;
-      text-decoration: none;
-      border-radius: 4px;
-      margin-top: 4px;
-    }
-
-    .chat-input-container {
-      display: flex;
-      gap: 6px;
-      align-items: center;
-    }
-    .chat-input-container input[type="text"] {
-      flex: 1;
-      margin: 0;
-    }
-    .chat-input-container button {
-      margin: 0;
-      background-color: #2196F3;
-    }
-    .img-select-btn {
-      background-color: #673AB7;
-      color: white;
-      padding: 10px 12px;
-      cursor: pointer;
-      border-radius: 6px;
-      font-size: 16px;
-      border: none;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .img-select-btn:disabled {
-      background-color: #ccc;
-      cursor: not-allowed;
-    }
-
-    /* 画像拡大用モーダル */
-    .modal {
-      display: none;
-      position: fixed;
-      z-index: 1000;
-      left: 0;
-      top: 0;
-      width: 100%;
-      height: 100%;
-      background-color: rgba(0,0,0,0.85);
-      justify-content: center;
-      align-items: center;
-    }
-    .modal-content {
-      max-width: 90%;
-      max-height: 80%;
       border-radius: 8px;
+      outline: none;
     }
-    .modal-close {
-      position: absolute;
-      top: 20px;
-      right: 25px;
-      color: white;
-      font-size: 35px;
+    button {
+      padding: 10px;
+      font-size: 1rem;
       font-weight: bold;
-      cursor: pointer;
-    }
-
-    /* ボトムシート（画像選択メニュー） */
-    .sheet-overlay {
-      display: none;
-      position: fixed;
-      z-index: 2000;
-      left: 0;
-      top: 0;
-      width: 100%;
-      height: 100%;
-      background-color: rgba(0,0,0,0.5);
-      justify-content: flex-end;
-      flex-direction: column;
-    }
-    .sheet-content {
-      background: white;
-      padding: 20px;
-      border-top-left-radius: 16px;
-      border-top-right-radius: 16px;
-      box-shadow: 0 -4px 10px rgba(0,0,0,0.2);
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-    .sheet-btn {
-      padding: 12px;
       border: none;
       border-radius: 8px;
-      font-size: 16px;
-      font-weight: bold;
       cursor: pointer;
-      width: 100%;
-    }
-    .sheet-btn.camera {
-      background-color: #2196F3;
-      color: white;
-    }
-    .sheet-btn.gallery {
       background-color: #4CAF50;
       color: white;
+      transition: background 0.2s;
     }
-    .sheet-btn.cancel {
-      background-color: #eee;
-      color: #333;
+    button:active { opacity: 0.8; }
+    .status {
+      font-size: 0.85rem;
+      text-align: center;
+      color: #666;
+    }
+    /* 映像表示エリア */
+    .video-container {
+      position: relative;
+      width: 100%;
+      height: 240px;
+      background-color: #000;
+      border-radius: 12px;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #remoteVideo {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    #localVideo {
+      position: absolute;
+      bottom: 10px;
+      right: 10px;
+      width: 90px;
+      height: 120px;
+      object-fit: cover;
+      border-radius: 8px;
+      border: 2px solid #fff;
+      background: #222;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+    }
+    .controls {
+      display: flex;
+      gap: 8px;
+    }
+    .controls button {
+      flex: 1;
+      font-size: 0.9rem;
+    }
+    .btn-orange { background-color: #ff9800; }
+    .btn-blue { background-color: #2196F3; }
+    
+    .chat-box {
+      height: 120px;
+      border: 1px solid #eee;
+      border-radius: 8px;
+      padding: 8px;
+      overflow-y: auto;
+      font-size: 0.85rem;
+      background: #fafafa;
+    }
+    .chat-input {
+      display: flex;
+      gap: 8px;
     }
   </style>
 </head>
 <body>
 
-  <div class="card">
-    <h2>🧵 糸でんわ 📞(WebRTC)</h2>
+  <div class="container">
+    <h1>🧵 糸でnわ 📞 (WebRTC)</h1>
     
-    <div>
-      <input type="text" id="roomIdInput" class="room-input" placeholder="ルームIDを入力 (例: 1234)">
-      <button id="joinBtn" class="btn">ルームに参加 🏡</button>
+    <input type="text" id="roomId" placeholder="ルームIDを入力 (例: 1234)">
+    <button id="joinBtn" onclick="joinRoom()">ルームに参加 🏡</button>
+    
+    <div class="status" id="status">サーバーに接続中...</div>
+
+    <!-- 映像表示エリア（相手がメイン、自分が右下の小窓） -->
+    <div class="video-container">
+      <video id="remoteVideo" autoplay playsinline></video>
+      <video id="localVideo" autoplay playsinline muted></video>
     </div>
 
-    <div id="status">サーバー接続中...</div>
-
-    <!-- マイクミュートボタン -->
+    <!-- コントロールボタン -->
     <div class="controls">
-      <button id="muteBtn" class="mute-btn" disabled>🎙️ マイク ON</button>
+      <button id="micBtn" class="btn-orange" onclick="toggleMic()">🎙️ マイク ON</button>
+      <button id="camBtn" class="btn-blue" onclick="toggleCam()">📹 カメラ ON</button>
     </div>
 
-    <!-- チャット表示欄 -->
-    <div id="chatBox"></div>
-
-    <!-- メッセージ＆画像入力欄 -->
-    <div class="chat-input-container">
-      <button type="button" class="img-select-btn" id="imgBtn" disabled>📷</button>
-      
-      <!-- 隠しinput：カメラ用とギャラリー用の2つ用意 -->
-      <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display: none;">
-      <input type="file" id="galleryInput" accept="image/*" style="display: none;">
-      
-      <input type="text" id="msgInput" placeholder="メッセージを入力..." disabled>
-      <button id="sendBtn" disabled>💌</button>
-    </div>
-
-    <audio id="remoteAudio" autoplay></audio>
-  </div>
-
-  <!-- 画像拡大モーダル -->
-  <div id="imageModal" class="modal">
-    <span class="modal-close" id="modalClose">&times;</span>
-    <img class="modal-content" id="modalImg">
-  </div>
-
-  <!-- カスタムボトムシート（選択ダイアログ） -->
-  <div id="sheetOverlay" class="sheet-overlay">
-    <div class="sheet-content">
-      <button type="button" class="sheet-btn camera" id="optCamera">📸 カメラで撮影</button>
-      <button type="button" class="sheet-btn gallery" id="optGallery">📁 ギャラリーから選択</button>
-      <button type="button" class="sheet-btn cancel" id="optCancel">キャンセル</button>
+    <!-- チャットエリア -->
+    <div class="chat-box" id="chatBox"></div>
+    <div class="chat-input">
+      <input type="text" id="msgInput" placeholder="メッセージを入力...">
+      <button onclick="sendMsg()">送信</button>
     </div>
   </div>
 
   <script>
-    const SIGNALING_SERVER_URL = 'wss://itodenwa-server.onrender.com';
-    
-    let socket;
-    let localStream;
-    let peerConnection;
-    let dataChannel;
-    let currentRoomId = '';
-    let isMuted = false;
-
-    const statusDiv = document.getElementById('status');
-    const joinBtn = document.getElementById('joinBtn');
-    const roomIdInput = document.getElementById('roomIdInput');
-    const remoteAudio = document.getElementById('remoteAudio');
-    const chatBox = document.getElementById('chatBox');
-    const msgInput = document.getElementById('msgInput');
-    const sendBtn = document.getElementById('sendBtn');
-    const imgBtn = document.getElementById('imgBtn');
-    const cameraInput = document.getElementById('cameraInput');
-    const galleryInput = document.getElementById('galleryInput');
-    const muteBtn = document.getElementById('muteBtn');
-
-    // モーダル用
-    const imageModal = document.getElementById('imageModal');
-    const modalImg = document.getElementById('modalImg');
-    const modalClose = document.getElementById('modalClose');
-
-    // ボトムシート用
-    const sheetOverlay = document.getElementById('sheetOverlay');
-    const optCamera = document.getElementById('optCamera');
-    const optGallery = document.getElementById('optGallery');
-    const optCancel = document.getElementById('optCancel');
+    const ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host);
+    let pc = null;
+    let localStream = null;
+    let roomId = null;
+    let isMicOn = true;
+    let isCamOn = true;
 
     const configuration = {
       iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
     };
 
-    function logStatus(msg, isError = false) {
-      statusDiv.innerText = msg;
-      statusDiv.style.color = isError ? 'red' : '#333';
-    }
-
-    // テキストメッセージ追加
-    function appendMessage(text, side) {
-      const msgDiv = document.createElement('div');
-      msgDiv.classList.add('msg', side);
-      msgDiv.innerText = text;
-      chatBox.appendChild(msgDiv);
-      chatBox.scrollTop = chatBox.scrollHeight;
-    }
-
-    // 画像メッセージ追加
-    function appendImage(base64Data, side) {
-      const msgDiv = document.createElement('div');
-      msgDiv.classList.add('msg', side);
-
-      const container = document.createElement('div');
-      container.classList.add('chat-img-container');
-
-      const img = document.createElement('img');
-      img.src = base64Data;
-      img.classList.add('chat-img');
-      
-      // タップで拡大表示
-      img.onclick = () => {
-        modalImg.src = base64Data;
-        imageModal.style.display = 'flex';
-      };
-
-      // 画像保存用リンクボタン
-      const saveLink = document.createElement('a');
-      saveLink.href = base64Data;
-      saveLink.download = `itodenwa_${Date.now()}.png`;
-      saveLink.innerText = '💾 保存';
-      saveLink.classList.add('save-btn');
-
-      container.appendChild(img);
-      container.appendChild(saveLink);
-      msgDiv.appendChild(container);
-
-      chatBox.appendChild(msgDiv);
-      chatBox.scrollTop = chatBox.scrollHeight;
-    }
-
-    function enableControls(enable = true) {
-      msgInput.disabled = !enable;
-      sendBtn.disabled = !enable;
-      imgBtn.disabled = !enable;
-      muteBtn.disabled = !enable;
-    }
-
-    // 📷ボタンで画面下にボトムシートを表示
-    imgBtn.addEventListener('click', () => {
-      sheetOverlay.style.display = 'flex';
-    });
-
-    // ボトムシートの各ボタン処理
-    optCamera.addEventListener('click', () => {
-      sheetOverlay.style.display = 'none';
-      cameraInput.click();
-    });
-
-    optGallery.addEventListener('click', () => {
-      sheetOverlay.style.display = 'none';
-      galleryInput.click();
-    });
-
-    optCancel.addEventListener('click', () => {
-      sheetOverlay.style.display = 'none';
-    });
-
-    sheetOverlay.addEventListener('click', (e) => {
-      if (e.target === sheetOverlay) sheetOverlay.style.display = 'none';
-    });
-
-    // モーダルを閉じる処理
-    modalClose.onclick = () => { imageModal.style.display = 'none'; };
-    imageModal.onclick = (e) => {
-      if (e.target === imageModal) imageModal.style.display = 'none';
+    ws.onopen = () => {
+      document.getElementById('status').innerText = 'サーバーに接続しました 📟 ルームIDを入力してください 💳';
     };
 
-    function initWebSocket() {
-      socket = new WebSocket(SIGNALING_SERVER_URL);
+    ws.onclose = () => {
+      document.getElementById('status').innerText = 'サーバーとの接続が切れました。';
+    };
 
-      socket.onopen = () => {
-        logStatus('サーバーに接続しました🗄️ルームIDを入力してください🪪');
+    ws.onmessage = async (event) => {
+      const msg = JSON.parse(event.data);
+
+      if (msg.type === 'offer') {
+        if (!pc) createPeerConnection();
+        await pc.setRemoteDescription(new RTCSessionDescription(msg.offer));
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        ws.send(JSON.stringify({ type: 'answer', answer }));
+      } else if (msg.type === 'answer') {
+        await pc.setRemoteDescription(new RTCSessionDescription(msg.answer));
+      } else if (msg.type === 'candidate') {
+        if (pc) await pc.addIceCandidate(new RTCIceCandidate(msg.candidate));
+      } else if (msg.type === 'text') {
+        addChatMessage('相手: ' + msg.text);
+      }
+    };
+
+    async function startMedia() {
+      try {
+        // カメラとマイクの両方を取得
+        localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+        document.getElementById('localVideo').srcObject = localStream;
+      } catch (err) {
+        console.error('メディア取得失敗:', err);
+        document.getElementById('status').innerText = 'カメラ/マイクの許可が必要です。';
+      }
+    }
+
+    async function joinRoom() {
+      roomId = document.getElementById('roomId').value.trim();
+      if (!roomId) return alert('ルームIDを入力してください');
+
+      await startMedia();
+
+      ws.send(JSON.stringify({ type: 'join', room: roomId }));
+      document.getElementById('status').innerText = `ルーム [${roomId}] に参加中...`;
+
+      createPeerConnection();
+
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      ws.send(JSON.stringify({ type: 'offer', offer }));
+    }
+
+    function createPeerConnection() {
+      pc = new RTCPeerConnection(configuration);
+
+      if (localStream) {
+        localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+      }
+
+      pc.ontrack = (event) => {
+        document.getElementById('remoteVideo').srcObject = event.streams[0];
       };
 
-      socket.onclose = () => {
-        logStatus('サーバーとの接続が切れました。', true);
-        enableControls(false);
-      };
-
-      socket.onerror = (err) => {
-        logStatus('WebSocket接続エラーが発生しました。', true);
-      };
-
-      socket.onmessage = async (event) => {
-        try {
-          const data = JSON.parse(event.data);
-
-          switch (data.type) {
-            case 'offer':
-              logStatus('相手からの着信を受け取りました！接続中...');
-              await handleOffer(data.offer);
-              break;
-
-            case 'answer':
-              logStatus('相手が応答しました！接続中...');
-              await handleAnswer(data.answer);
-              break;
-
-            case 'candidate':
-              await handleCandidate(data.candidate);
-              break;
-          }
-        } catch (e) {
-          logStatus('受信エラー: ' + e.message, true);
+      pc.onicecandidate = (event) => {
+        if (event.candidate) {
+          ws.send(JSON.stringify({ type: 'candidate', candidate: event.candidate }));
         }
       };
     }
 
-    async function getMedia() {
-      try {
-        localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-        return true;
-      } catch (err) {
-        logStatus('マイクエラー: ' + err.name + ' - ' + err.message, true);
-        return false;
-      }
-    }
-
-    // 音声のミュートボタン処理
-    muteBtn.addEventListener('click', () => {
+    function toggleMic() {
       if (!localStream) return;
-      
       const audioTrack = localStream.getAudioTracks()[0];
       if (audioTrack) {
-        isMuted = !isMuted;
-        audioTrack.enabled = !isMuted;
-        
-        if (isMuted) {
-          muteBtn.innerText = '🔇 マイク OFF (ミュート中)';
-          muteBtn.classList.add('muted');
-        } else {
-          muteBtn.innerText = '🎙️ マイク ON';
-          muteBtn.classList.remove('muted');
-        }
-      }
-    });
-
-    joinBtn.addEventListener('click', async () => {
-      try {
-        currentRoomId = roomIdInput.value.trim();
-        if (!currentRoomId) {
-          alert('ルームIDを入力してください！');
-          return;
-        }
-
-        logStatus('マイクを準備中...');
-        if (!localStream) {
-          const ok = await getMedia();
-          if (!ok) return;
-        }
-
-        if (socket && socket.readyState === WebSocket.OPEN) {
-          socket.send(JSON.stringify({ type: 'join', room: currentRoomId }));
-          logStatus(`ルーム [${currentRoomId}] に参加しました！通話を呼び出しています...`);
-          await startCall(true);
-        } else {
-          logStatus('サーバー未接続のため送信できません。', true);
-        }
-      } catch (e) {
-        logStatus('ボタン処理エラー: ' + e.message, true);
-      }
-    });
-
-    async function startCall(isOffer = false) {
-      try {
-        if (!peerConnection) {
-          peerConnection = new RTCPeerConnection(configuration);
-
-          localStream.getTracks().forEach(track => {
-            peerConnection.addTrack(track, localStream);
-          });
-
-          peerConnection.ontrack = (event) => {
-            remoteAudio.srcObject = event.streams[0];
-            logStatus(`通話中📱✨ (ルーム: ${currentRoomId})`);
-          };
-
-          peerConnection.onicecandidate = (event) => {
-            if (event.candidate) {
-              socket.send(JSON.stringify({
-                type: 'candidate',
-                candidate: event.candidate,
-                room: currentRoomId
-              }));
-            }
-          };
-
-          peerConnection.ondatachannel = (event) => {
-            dataChannel = event.channel;
-            setupDataChannel();
-          };
-        }
-
-        if (isOffer) {
-          dataChannel = peerConnection.createDataChannel('chat');
-          setupDataChannel();
-
-          const offer = await peerConnection.createOffer();
-          await peerConnection.setLocalDescription(offer);
-          socket.send(JSON.stringify({
-            type: 'offer',
-            offer: offer,
-            room: currentRoomId
-          }));
-        }
-      } catch (e) {
-        logStatus('通話開始エラー: ' + e.message, true);
+        isMicOn = !isMicOn;
+        audioTrack.enabled = isMicOn;
+        const btn = document.getElementById('micBtn');
+        btn.innerText = isMicOn ? '🎙️ マイク ON' : '🔇 マイク OFF';
+        btn.style.backgroundColor = isMicOn ? '#ff9800' : '#888';
       }
     }
 
-    function setupDataChannel() {
-      if (!dataChannel) return;
-
-      dataChannel.onopen = () => {
-        enableControls(true);
-        logStatus(`通話＆チャット準備完了📱💬 (ルーム: ${currentRoomId})`);
-      };
-
-      dataChannel.onclose = () => {
-        enableControls(false);
-      };
-
-      dataChannel.onmessage = (event) => {
-        try {
-          const payload = JSON.parse(event.data);
-          if (payload.kind === 'text') {
-            appendMessage(payload.data, 'peer');
-          } else if (payload.kind === 'image') {
-            appendImage(payload.data, 'peer');
-          }
-        } catch(e) {
-          appendMessage(event.data, 'peer');
-        }
-      };
-    }
-
-    function sendMessage() {
-      const text = msgInput.value.trim();
-      if (text && dataChannel && dataChannel.readyState === 'open') {
-        const payload = JSON.stringify({ kind: 'text', data: text });
-        dataChannel.send(payload);
-        appendMessage(text, 'me');
-        msgInput.value = '';
+    function toggleCam() {
+      if (!localStream) return;
+      const videoTrack = localStream.getVideoTracks()[0];
+      if (videoTrack) {
+        isCamOn = !isCamOn;
+        videoTrack.enabled = isCamOn;
+        const btn = document.getElementById('camBtn');
+        btn.innerText = isCamOn ? '📹 カメラ ON' : '📷 カメラ OFF';
+        btn.style.backgroundColor = isCamOn ? '#2196F3' : '#888';
       }
     }
 
-    // 共通の画像処理＆送信関数
-    function handleImageFile(file) {
-      if (!file) return;
-
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const img = new Image();
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          const maxDim = 800;
-          let width = img.width;
-          let height = img.height;
-
-          if (width > height) {
-            if (width > maxDim) {
-              height *= maxDim / width;
-              width = maxDim;
-            }
-          } else {
-            if (height > maxDim) {
-              width *= maxDim / height;
-              height = maxDim;
-            }
-          }
-
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext('2d');
-          ctx.drawImage(img, 0, 0, width, height);
-
-          const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
-
-          if (dataChannel && dataChannel.readyState === 'open') {
-            const payload = JSON.stringify({ kind: 'image', data: compressedBase64 });
-            dataChannel.send(payload);
-            appendImage(compressedBase64, 'me');
-          }
-        };
-        img.src = event.target.result;
-      };
-      reader.readAsDataURL(file);
+    function sendMsg() {
+      const input = document.getElementById('msgInput');
+      const text = input.value.trim();
+      if (!text) return;
+      
+      ws.send(JSON.stringify({ type: 'text', text }));
+      addChatMessage('自分: ' + text);
+      input.value = '';
     }
 
-    // カメラで撮影した場合の処理
-    cameraInput.addEventListener('change', (e) => {
-      handleImageFile(e.target.files[0]);
-      cameraInput.value = '';
-    });
-
-    // ギャラリーから選んだ場合の処理
-    galleryInput.addEventListener('change', (e) => {
-      handleImageFile(e.target.files[0]);
-      galleryInput.value = '';
-    });
-
-    sendBtn.addEventListener('click', sendMessage);
-
-    msgInput.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') {
-        sendMessage();
-      }
-    });
-
-    async function handleOffer(offer) {
-      if (!peerConnection) await startCall(false);
-      await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
-      const answer = await peerConnection.createAnswer();
-      await peerConnection.setLocalDescription(answer);
-      socket.send(JSON.stringify({
-        type: 'answer',
-        answer: answer,
-        room: currentRoomId
-      }));
+    function addChatMessage(msg) {
+      const chatBox = document.getElementById('chatBox');
+      const div = document.createElement('div');
+      div.innerText = msg;
+      chatBox.appendChild(div);
+      chatBox.scrollTop = chatBox.scrollHeight;
     }
-
-    async function handleAnswer(answer) {
-      if (peerConnection) {
-        await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
-      }
-    }
-
-    async function handleCandidate(candidate) {
-      if (peerConnection) {
-        await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
-      }
-    }
-
-    initWebSocket();
   </script>
 </body>
 </html>
