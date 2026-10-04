@@ -89,10 +89,11 @@
     }
     .controls {
       display: flex;
+      flex-wrap: wrap;
       gap: 6px;
     }
     .controls button {
-      flex: 1;
+      flex: 1 1 30%;
       padding: 8px 2px;
       font-size: 0.75rem;
     }
@@ -100,6 +101,7 @@
     .btn-blue { background-color: #2196F3; }
     .btn-purple { background-color: #9C27B0; }
     .btn-teal { background-color: #009688; }
+    .btn-pink { background-color: #E91E63; }
 
     .chat-box {
       height: 100px;
@@ -119,7 +121,7 @@
       display: flex;
       gap: 8px;
     }
-    #imageInput {
+    .hidden-input {
       display: none;
     }
   </style>
@@ -145,8 +147,13 @@
       <button id="micBtn" class="btn-orange" onclick="toggleMic()">🎙️ マイク ON</button>
       <button id="camBtn" class="btn-blue" onclick="toggleCam()">📹 カメラ ON</button>
       <button id="switchCamBtn" class="btn-purple" onclick="switchCamera()">🔄 切替</button>
-      <button class="btn-teal" onclick="document.getElementById('imageInput').click()">🖼️ 画像</button>
-      <input type="file" id="imageInput" accept="image/*" onchange="sendImage(event)">
+      <button class="btn-pink" onclick="document.getElementById('cameraInput').click()">📷 撮影</button>
+      <button class="btn-teal" onclick="document.getElementById('galleryInput').click()">🖼️ アルバム</button>
+      
+      <!-- カメラ直接起動用インプット -->
+      <input type="file" id="cameraInput" class="hidden-input" accept="image/*" capture="environment" onchange="sendImage(event)">
+      <!-- ギャラリー選択用インプット -->
+      <input type="file" id="galleryInput" class="hidden-input" accept="image/*" onchange="sendImage(event)">
     </div>
 
     <!-- チャットエリア -->
@@ -328,4 +335,3 @@
   </script>
 </body>
 </html>
-
