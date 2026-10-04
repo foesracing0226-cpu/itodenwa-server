@@ -223,7 +223,7 @@
       return outputArray;
     }
 
-    const ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host);
+    let ws = null;
     let pc = null;
     let localStream = null;
     let roomId = null;
@@ -235,16 +235,58 @@
       iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
     };
 
-    ws.onopen = () => {
-      document.getElementById('status').innerText = 'サーバーに接続しました 🗄️';
-      initNotification();
-    };
+    // WebSocket接続・再接続処理
+    function connectWebSocket() {
+      if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return;
 
-    ws.onclose = () => {
-      document.getElementById('status').innerText = 'サーバーとの接続が切れました。';
-    };
+      ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host);
 
-    // 手動呼び出しも可能な通知登録関数
+      ws.onopen = () => {
+        document.getElementById('status').innerText = 'サーバーに接続しました 🗄️';
+        if (roomId) {
+          ws.send(JSON.stringify({ type: 'join', room: roomId }));
+        }
+        initNotification();
+      };
+
+      ws.onclose = () => {
+        document.getElementById('status').innerText = 'サーバーとの接続が切れました。';
+      };
+
+      ws.onmessage = async (event) => {
+        const msg = JSON.parse(event.data);
+
+        if (msg.type === 'offer') {
+          if (!pc) createPeerConnection();
+          await pc.setRemoteDescription(new RTCSessionDescription(msg.offer));
+          const answer = await pc.createAnswer();
+          await pc.setLocalDescription(answer);
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'answer', answer }));
+          }
+        } else if (msg.type === 'answer') {
+          await pc.setRemoteDescription(new RTCSessionDescription(msg.answer));
+        } else if (msg.type === 'candidate') {
+          if (pc) await pc.addIceCandidate(new RTCIceCandidate(msg.candidate));
+        } else if (msg.type === 'text') {
+          addChatMessage('相手: ' + msg.text);
+        } else if (msg.type === 'image') {
+          addImageMessage('相手', msg.image);
+        }
+      };
+    }
+
+    // 初回接続
+    connectWebSocket();
+
+    // バックグラウンドから復帰した時に自動で再接続
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        connectWebSocket();
+      }
+    });
+
+    // 通知登録関数
     async function initNotification() {
       const statusEl = document.getElementById('status');
 
@@ -258,14 +300,10 @@
       }
 
       try {
-        statusEl.innerText = '⏳ ServiceWorker登録中...';
         const register = await navigator.serviceWorker.register('/sw.js');
-        
-        statusEl.innerText = '⏳ 通知権限をリクエスト中...';
         const permission = await Notification.requestPermission();
         
         if (permission === 'granted') {
-          statusEl.innerText = '⏳ 通知サブスクリプション取得中...';
           let subscription = await register.pushManager.getSubscription();
           if (!subscription) {
             subscription = await register.pushManager.subscribe({
@@ -277,8 +315,6 @@
           if (ws && ws.readyState === WebSocket.OPEN) {
             ws.send(JSON.stringify({ type: 'subscribe', subscription }));
             statusEl.innerText = '🎉 通知の登録が完了しました！';
-          } else {
-            statusEl.innerText = '⚠️ WS未接続のため通知宛先を送信できませんでした';
           }
         } else {
           statusEl.innerText = '❌ 通知権限が拒否されました (' + permission + ')';
@@ -288,26 +324,6 @@
         statusEl.innerText = '❌ エラー: ' + err.message;
       }
     }
-
-    ws.onmessage = async (event) => {
-      const msg = JSON.parse(event.data);
-
-      if (msg.type === 'offer') {
-        if (!pc) createPeerConnection();
-        await pc.setRemoteDescription(new RTCSessionDescription(msg.offer));
-        const answer = await pc.createAnswer();
-        await pc.setLocalDescription(answer);
-        ws.send(JSON.stringify({ type: 'answer', answer }));
-      } else if (msg.type === 'answer') {
-        await pc.setRemoteDescription(new RTCSessionDescription(msg.answer));
-      } else if (msg.type === 'candidate') {
-        if (pc) await pc.addIceCandidate(new RTCIceCandidate(msg.candidate));
-      } else if (msg.type === 'text') {
-        addChatMessage('相手: ' + msg.text);
-      } else if (msg.type === 'image') {
-        addImageMessage('相手', msg.image);
-      }
-    };
 
     async function startMedia(facingMode = 'user') {
       try {
@@ -341,14 +357,18 @@
 
       await startMedia(currentFacingMode);
 
-      ws.send(JSON.stringify({ type: 'join', room: roomId }));
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'join', room: roomId }));
+      }
       document.getElementById('status').innerText = `ルーム [${roomId}] に参加中...`;
 
       createPeerConnection();
 
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
-      ws.send(JSON.stringify({ type: 'offer', offer }));
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'offer', offer }));
+      }
     }
 
     function createPeerConnection() {
@@ -363,7 +383,7 @@
       };
 
       pc.onicecandidate = (event) => {
-        if (event.candidate) {
+        if (event.candidate && ws && ws.readyState === WebSocket.OPEN) {
           ws.send(JSON.stringify({ type: 'candidate', candidate: event.candidate }));
         }
       };
@@ -403,7 +423,9 @@
       const text = input.value.trim();
       if (!text) return;
       
-      ws.send(JSON.stringify({ type: 'text', text }));
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'text', text }));
+      }
       addChatMessage('自分: ' + text);
       input.value = '';
     }
@@ -415,7 +437,9 @@
       const reader = new FileReader();
       reader.onload = function(e) {
         const base64Image = e.target.result;
-        ws.send(JSON.stringify({ type: 'image', image: base64Image }));
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: 'image', image: base64Image }));
+        }
         addImageMessage('自分', base64Image);
       };
       reader.readAsDataURL(file);
