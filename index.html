@@ -219,6 +219,52 @@
   </div>
 
   <script>
+        // 公開鍵（VAPID Public Key）
+    const PUBLIC_VAPID_KEY = 'BPSJBiHSKzcUTmd3WrDiXPRd_SUTOwg8PBl3iUbzThc3FqTsxpadgebGs2TscnM3gIe_cM2GJu4CzCUEA';
+
+    // Base64URL文字列をUint8Arrayに変換するヘルパー関数
+    function urlBase64ToUint8Array(base64String) {
+      const padding = '='.repeat((4 - base64String.length % 4) % 4);
+      const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+      const rawData = window.atob(base64);
+      const outputArray = new Uint8Array(rawData.length);
+      for (let i = 0; i < rawData.length; ++i) {
+        outputArray[i] = rawData.charCodeAt(i);
+      }
+      return outputArray;
+    }
+
+    // Service Workerの登録と通知購読
+    async function initNotification() {
+      if ('serviceWorker' in navigator && 'PushManager' in window) {
+        try {
+          const register = await navigator.serviceWorker.register('/sw.js');
+          console.log('Service Worker 登録成功');
+
+          const permission = await Notification.requestPermission();
+          if (permission === 'granted') {
+            const subscription = await register.pushManager.subscribe({
+              userVisibleOnly: true,
+              applicationServerKey: urlBase64ToUint8Array(PUBLIC_VAPID_KEY)
+            });
+
+            // WebSocket経由でサーバーへサブスクリプション情報を送信
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(JSON.stringify({ type: 'subscribe', subscription }));
+            } else {
+              ws.addEventListener('open', () => {
+                ws.send(JSON.stringify({ type: 'subscribe', subscription }));
+              }, { once: true });
+            }
+          }
+        } catch (err) {
+          console.error('通知の設定に失敗:', err);
+        }
+      }
+    }
+
+    // ページ読み込み時に実行
+    window.addEventListener('load', initNotification);
     const ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host);
     let pc = null;
     let localStream = null;
