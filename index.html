@@ -43,7 +43,7 @@
     }
     button {
       padding: 10px;
-      font-size: 0.9rem;
+      font-size: 0.85rem;
       font-weight: bold;
       border: none;
       border-radius: 8px;
@@ -62,7 +62,7 @@
     .video-container {
       position: relative;
       width: 100%;
-      height: 240px;
+      height: 220px;
       background-color: #000;
       border-radius: 12px;
       overflow: hidden;
@@ -79,8 +79,8 @@
       position: absolute;
       bottom: 10px;
       right: 10px;
-      width: 90px;
-      height: 120px;
+      width: 80px;
+      height: 110px;
       object-fit: cover;
       border-radius: 8px;
       border: 2px solid #fff;
@@ -93,13 +93,14 @@
     }
     .controls button {
       flex: 1;
-      padding: 8px 4px;
-      font-size: 0.8rem;
+      padding: 8px 2px;
+      font-size: 0.75rem;
     }
     .btn-orange { background-color: #ff9800; }
     .btn-blue { background-color: #2196F3; }
     .btn-purple { background-color: #9C27B0; }
-    
+    .btn-teal { background-color: #009688; }
+
     .chat-box {
       height: 100px;
       border: 1px solid #eee;
@@ -109,9 +110,17 @@
       font-size: 0.85rem;
       background: #fafafa;
     }
+    .chat-box img {
+      max-width: 100%;
+      border-radius: 8px;
+      margin-top: 4px;
+    }
     .chat-input {
       display: flex;
       gap: 8px;
+    }
+    #imageInput {
+      display: none;
     }
   </style>
 </head>
@@ -131,11 +140,13 @@
       <video id="localVideo" autoplay playsinline muted></video>
     </div>
 
-    <!-- コントロールボタン（カメラ切り替えを追加） -->
+    <!-- コントロールボタン -->
     <div class="controls">
       <button id="micBtn" class="btn-orange" onclick="toggleMic()">🎙️ マイク ON</button>
       <button id="camBtn" class="btn-blue" onclick="toggleCam()">📹 カメラ ON</button>
-      <button id="switchCamBtn" class="btn-purple" onclick="switchCamera()">🔄 カメラ切替</button>
+      <button id="switchCamBtn" class="btn-purple" onclick="switchCamera()">🔄 切替</button>
+      <button class="btn-teal" onclick="document.getElementById('imageInput').click()">🖼️ 画像</button>
+      <input type="file" id="imageInput" accept="image/*" onchange="sendImage(event)">
     </div>
 
     <!-- チャットエリア -->
@@ -153,7 +164,7 @@
     let roomId = null;
     let isMicOn = true;
     let isCamOn = true;
-    let currentFacingMode = 'user'; // 'user'=インカメ, 'environment'=アウトカメラ
+    let currentFacingMode = 'user';
 
     const configuration = {
       iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
@@ -182,6 +193,8 @@
         if (pc) await pc.addIceCandidate(new RTCIceCandidate(msg.candidate));
       } else if (msg.type === 'text') {
         addChatMessage('相手: ' + msg.text);
+      } else if (msg.type === 'image') {
+        addImageMessage('相手', msg.image);
       }
     };
 
@@ -198,7 +211,6 @@
         
         document.getElementById('localVideo').srcObject = localStream;
 
-        // 通話中の場合は映像トラックを相手側にもリアルタイム差し替え
         if (pc) {
           const videoTrack = localStream.getVideoTracks()[0];
           const sender = pc.getSenders().find(s => s.track && s.track.kind === 'video');
@@ -270,7 +282,6 @@
       }
     }
 
-    // カメラのイン/アウト切り替え処理
     async function switchCamera() {
       currentFacingMode = (currentFacingMode === 'user') ? 'environment' : 'user';
       await startMedia(currentFacingMode);
@@ -286,6 +297,19 @@
       input.value = '';
     }
 
+    function sendImage(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const base64Image = e.target.result;
+        ws.send(JSON.stringify({ type: 'image', image: base64Image }));
+        addImageMessage('自分', base64Image);
+      };
+      reader.readAsDataURL(file);
+    }
+
     function addChatMessage(msg) {
       const chatBox = document.getElementById('chatBox');
       const div = document.createElement('div');
@@ -293,6 +317,15 @@
       chatBox.appendChild(div);
       chatBox.scrollTop = chatBox.scrollHeight;
     }
+
+    function addImageMessage(sender, imgSrc) {
+      const chatBox = document.getElementById('chatBox');
+      const div = document.createElement('div');
+      div.innerHTML = `<strong>${sender}:</strong><br><img src="${imgSrc}">`;
+      chatBox.appendChild(div);
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
   </script>
 </body>
 </html>
+
