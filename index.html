@@ -189,7 +189,7 @@
 
     <!-- コントロールボタン -->
     <div class="controls">
-      <button id="micBtn" class="btn-orange" onclick="toggleMic()">🎙️ マイク ON</button>
+      <button id="micBtn" class="btn-orange" onclick="toggleMic()">🎙️️ マイク ON</button>
       <button id="camBtn" class="btn-blue" onclick="toggleCam()">📹 カメラ ON</button>
       <button id="switchCamBtn" class="btn-purple" onclick="switchCamera()">🔄 切替</button>
       <button class="btn-pink" onclick="document.getElementById('cameraInput').click()">📷 撮影</button>
@@ -219,7 +219,7 @@
   </div>
 
   <script>
-        // 公開鍵（VAPID Public Key）
+    // 公開鍵（VAPID Public Key）
     const PUBLIC_VAPID_KEY = 'BHbF8fZXd2ATkUU6BoPGxWaX58_gEZ9j-lpf__dB9MYTfg852LCJHWIt2Bu30emD-GZbX3TR6Xr3qDsyn8GNts8';
 
     // Base64URL文字列をUint8Arrayに変換するヘルパー関数
@@ -234,37 +234,7 @@
       return outputArray;
     }
 
-    // Service Workerの登録と通知購読
-    async function initNotification() {
-      if ('serviceWorker' in navigator && 'PushManager' in window) {
-        try {
-          const register = await navigator.serviceWorker.register('/sw.js');
-          console.log('Service Worker 登録成功');
-
-          const permission = await Notification.requestPermission();
-          if (permission === 'granted') {
-            const subscription = await register.pushManager.subscribe({
-              userVisibleOnly: true,
-              applicationServerKey: urlBase64ToUint8Array(PUBLIC_VAPID_KEY)
-            });
-
-            // WebSocket経由でサーバーへサブスクリプション情報を送信
-            if (ws.readyState === WebSocket.OPEN) {
-              ws.send(JSON.stringify({ type: 'subscribe', subscription }));
-            } else {
-              ws.addEventListener('open', () => {
-                ws.send(JSON.stringify({ type: 'subscribe', subscription }));
-              }, { once: true });
-            }
-          }
-        } catch (err) {
-          console.error('通知の設定に失敗:', err);
-        }
-      }
-    }
-
-    // ページ読み込み時に実行
-    window.addEventListener('load', initNotification);
+    // WebSocketの準備
     const ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host);
     let pc = null;
     let localStream = null;
@@ -277,13 +247,45 @@
       iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
     };
 
+    // WebSocket接続完了時の処理
     ws.onopen = () => {
       document.getElementById('status').innerText = 'サーバーに接続しました 🗄️ ルームIDを入力してください 💳';
+      // 接続が確立されたら通知宛先を登録する！
+      initNotification();
     };
 
     ws.onclose = () => {
       document.getElementById('status').innerText = 'サーバーとの接続が切れました。';
     };
+
+    // Service Workerの登録と通知購読処理
+    async function initNotification() {
+      if ('serviceWorker' in navigator && 'PushManager' in window) {
+        try {
+          const register = await navigator.serviceWorker.register('/sw.js');
+          console.log('Service Worker 登録成功');
+
+          const permission = await Notification.requestPermission();
+          if (permission === 'granted') {
+            let subscription = await register.pushManager.getSubscription();
+            if (!subscription) {
+              subscription = await register.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: urlBase64ToUint8Array(PUBLIC_VAPID_KEY)
+              });
+            }
+
+            // WebSocket経由でサーバーへサブスクリプション情報を送信
+            if (ws && ws.readyState === WebSocket.OPEN) {
+              ws.send(JSON.stringify({ type: 'subscribe', subscription }));
+              console.log('通知宛先（subscribe）を送信しました！');
+            }
+          }
+        } catch (err) {
+          console.error('通知の設定に失敗:', err);
+        }
+      }
+    }
 
     ws.onmessage = async (event) => {
       const msg = JSON.parse(event.data);
