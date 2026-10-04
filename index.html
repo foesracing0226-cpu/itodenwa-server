@@ -57,8 +57,8 @@
       font-size: 0.85rem;
       text-align: center;
       color: #666;
+      word-break: break-all;
     }
-    /* 映像表示エリア */
     .video-container {
       position: relative;
       width: 100%;
@@ -102,6 +102,7 @@
     .btn-purple { background-color: #9C27B0; }
     .btn-teal { background-color: #009688; }
     .btn-pink { background-color: #E91E63; }
+    .btn-notify { background-color: #e65100; width: 100%; margin-top: 4px; }
 
     .chat-box {
       height: 100px;
@@ -116,20 +117,13 @@
       max-width: 100%;
       border-radius: 8px;
       margin-top: 4px;
-      transition: transform 0.2s;
-    }
-    .chat-box img:hover {
-      opacity: 0.9;
     }
     .chat-input {
       display: flex;
       gap: 8px;
     }
-    .hidden-input {
-      display: none;
-    }
+    .hidden-input { display: none; }
 
-    /* 画像拡大表示（モーダル）のスタイル */
     .modal {
       display: none;
       position: fixed;
@@ -176,32 +170,30 @@
   <div class="container">
     <h1>🧵 糸でんわ 📞 (WebRTC)</h1>
     
+    <!-- 通知許可用の手動ボタン -->
+    <button class="btn-notify" onclick="initNotification()">🔔 通知を有効化・再登録する</button>
+
     <input type="text" id="roomId" placeholder="ルームIDを入力 (例: 1234)">
     <button id="joinBtn" onclick="joinRoom()">ルームに参加 🏡</button>
     
     <div class="status" id="status">サーバーに接続中...</div>
 
-    <!-- 映像表示エリア -->
     <div class="video-container">
       <video id="remoteVideo" autoplay playsinline></video>
       <video id="localVideo" autoplay playsinline muted></video>
     </div>
 
-    <!-- コントロールボタン -->
     <div class="controls">
-      <button id="micBtn" class="btn-orange" onclick="toggleMic()">🎙️️ マイク ON</button>
+      <button id="micBtn" class="btn-orange" onclick="toggleMic()">🎙 マイク ON</button>
       <button id="camBtn" class="btn-blue" onclick="toggleCam()">📹 カメラ ON</button>
       <button id="switchCamBtn" class="btn-purple" onclick="switchCamera()">🔄 切替</button>
       <button class="btn-pink" onclick="document.getElementById('cameraInput').click()">📷 撮影</button>
       <button class="btn-teal" onclick="document.getElementById('galleryInput').click()">🖼️ アルバム</button>
       
-      <!-- カメラ直接起動用インプット -->
       <input type="file" id="cameraInput" class="hidden-input" accept="image/*" capture="environment" onchange="sendImage(event)">
-      <!-- ギャラリー選択用インプット -->
       <input type="file" id="galleryInput" class="hidden-input" accept="image/*" onchange="sendImage(event)">
     </div>
 
-    <!-- チャットエリア -->
     <div class="chat-box" id="chatBox"></div>
     <div class="chat-input">
       <input type="text" id="msgInput" placeholder="メッセージを入力...">
@@ -209,7 +201,6 @@
     </div>
   </div>
 
-  <!-- 画像拡大モーダル -->
   <div id="imageModal" class="modal" onclick="closeModal(event)">
     <img id="modalImg" src="" alt="拡大画像">
     <div class="modal-buttons" onclick="event.stopPropagation()">
@@ -219,10 +210,8 @@
   </div>
 
   <script>
-    // 公開鍵（VAPID Public Key）
     const PUBLIC_VAPID_KEY = 'BHbF8fZXd2ATkUU6BoPGxWaX58_gEZ9j-lpf__dB9MYTfg852LCJHWIt2Bu30emD-GZbX3TR6Xr3qDsyn8GNts8';
 
-    // Base64URL文字列をUint8Arrayに変換するヘルパー関数
     function urlBase64ToUint8Array(base64String) {
       const padding = '='.repeat((4 - base64String.length % 4) % 4);
       const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
@@ -234,7 +223,6 @@
       return outputArray;
     }
 
-    // WebSocketの準備
     const ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host);
     let pc = null;
     let localStream = null;
@@ -247,10 +235,8 @@
       iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
     };
 
-    // WebSocket接続完了時の処理
     ws.onopen = () => {
-      document.getElementById('status').innerText = 'サーバーに接続しました 🗄️ ルームIDを入力してください 💳';
-      // 接続が確立されたら通知宛先を登録する！
+      document.getElementById('status').innerText = 'サーバーに接続しました 🗄️';
       initNotification();
     };
 
@@ -258,32 +244,48 @@
       document.getElementById('status').innerText = 'サーバーとの接続が切れました。';
     };
 
-    // Service Workerの登録と通知購読処理
+    // 手動呼び出しも可能な通知登録関数
     async function initNotification() {
-      if ('serviceWorker' in navigator && 'PushManager' in window) {
-        try {
-          const register = await navigator.serviceWorker.register('/sw.js');
-          console.log('Service Worker 登録成功');
+      const statusEl = document.getElementById('status');
 
-          const permission = await Notification.requestPermission();
-          if (permission === 'granted') {
-            let subscription = await register.pushManager.getSubscription();
-            if (!subscription) {
-              subscription = await register.pushManager.subscribe({
-                userVisibleOnly: true,
-                applicationServerKey: urlBase64ToUint8Array(PUBLIC_VAPID_KEY)
-              });
-            }
+      if (!('serviceWorker' in navigator)) {
+        statusEl.innerText = '❌ このブラウザはServiceWorker非対応です';
+        return;
+      }
+      if (!('PushManager' in window)) {
+        statusEl.innerText = '❌ このブラウザはPush通知非対応です';
+        return;
+      }
 
-            // WebSocket経由でサーバーへサブスクリプション情報を送信
-            if (ws && ws.readyState === WebSocket.OPEN) {
-              ws.send(JSON.stringify({ type: 'subscribe', subscription }));
-              console.log('通知宛先（subscribe）を送信しました！');
-            }
+      try {
+        statusEl.innerText = '⏳ ServiceWorker登録中...';
+        const register = await navigator.serviceWorker.register('/sw.js');
+        
+        statusEl.innerText = '⏳ 通知権限をリクエスト中...';
+        const permission = await Notification.requestPermission();
+        
+        if (permission === 'granted') {
+          statusEl.innerText = '⏳ 通知サブスクリプション取得中...';
+          let subscription = await register.pushManager.getSubscription();
+          if (!subscription) {
+            subscription = await register.pushManager.subscribe({
+              userVisibleOnly: true,
+              applicationServerKey: urlBase64ToUint8Array(PUBLIC_VAPID_KEY)
+            });
           }
-        } catch (err) {
-          console.error('通知の設定に失敗:', err);
+
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'subscribe', subscription }));
+            statusEl.innerText = '🎉 通知の登録が完了しました！';
+          } else {
+            statusEl.innerText = '⚠️ WS未接続のため通知宛先を送信できませんでした';
+          }
+        } else {
+          statusEl.innerText = '❌ 通知権限が拒否されました (' + permission + ')';
         }
+      } catch (err) {
+        console.error('通知設定エラー:', err);
+        statusEl.innerText = '❌ エラー: ' + err.message;
       }
     }
 
