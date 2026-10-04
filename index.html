@@ -116,6 +116,10 @@
       max-width: 100%;
       border-radius: 8px;
       margin-top: 4px;
+      transition: transform 0.2s;
+    }
+    .chat-box img:hover {
+      opacity: 0.9;
     }
     .chat-input {
       display: flex;
@@ -124,6 +128,47 @@
     .hidden-input {
       display: none;
     }
+
+    /* 画像拡大表示（モーダル）のスタイル */
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.85);
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      gap: 15px;
+      padding: 20px;
+    }
+    .modal img {
+      max-width: 90%;
+      max-height: 70vh;
+      border-radius: 8px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+      object-fit: contain;
+    }
+    .modal-buttons {
+      display: flex;
+      gap: 10px;
+    }
+    .modal-buttons button, .modal-buttons a {
+      padding: 10px 20px;
+      font-size: 0.9rem;
+      font-weight: bold;
+      border-radius: 8px;
+      border: none;
+      text-decoration: none;
+      color: white;
+      cursor: pointer;
+      text-align: center;
+    }
+    .btn-download { background-color: #4CAF50; }
+    .btn-close { background-color: #777; }
   </style>
 </head>
 <body>
@@ -160,7 +205,16 @@
     <div class="chat-box" id="chatBox"></div>
     <div class="chat-input">
       <input type="text" id="msgInput" placeholder="メッセージを入力...">
-      <button onclick="sendMsg()">送信</button>
+      <button onclick="sendMsg()">💌</button>
+    </div>
+  </div>
+
+  <!-- 画像拡大モーダル -->
+  <div id="imageModal" class="modal" onclick="closeModal(event)">
+    <img id="modalImg" src="" alt="拡大画像">
+    <div class="modal-buttons" onclick="event.stopPropagation()">
+      <a id="downloadLink" class="btn-download" download="sent_image.png">💾 保存する</a>
+      <button class="btn-close" onclick="closeModal()">✕ 閉じる</button>
     </div>
   </div>
 
@@ -328,9 +382,25 @@
     function addImageMessage(sender, imgSrc) {
       const chatBox = document.getElementById('chatBox');
       const div = document.createElement('div');
-      div.innerHTML = `<strong>${sender}:</strong><br><img src="${imgSrc}">`;
+      div.innerHTML = `<strong>${sender}:</strong><br><img src="${imgSrc}" style="cursor: pointer;" onclick="openModal('${imgSrc}')">`;
       chatBox.appendChild(div);
       chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    function openModal(imgSrc) {
+      const modal = document.getElementById('imageModal');
+      const modalImg = document.getElementById('modalImg');
+      const downloadLink = document.getElementById('downloadLink');
+
+      modalImg.src = imgSrc;
+      downloadLink.href = imgSrc;
+      modal.style.display = 'flex';
+    }
+
+    function closeModal(event) {
+      if (!event || event.target.id === 'imageModal' || event.target.tagName === 'BUTTON') {
+        document.getElementById('imageModal').style.display = 'none';
+      }
     }
   </script>
 </body>
