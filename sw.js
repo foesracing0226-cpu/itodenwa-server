@@ -1,3 +1,6 @@
+// Cache bust v1.0.1
+self.addEventListener('push', function(event) {
+  // 既存の処理...
 // プッシュ通知を受け取った時の処理
 self.addEventListener('push', (event) => {
   let data = { title: '🧵 糸でんわ', body: '新しいメッセージが届きました！' };
