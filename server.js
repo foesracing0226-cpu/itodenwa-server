@@ -1,9 +1,14 @@
 const webpush = require('web-push');
-const vapidKeys = webpush.generateVAPIDKeys();
-console.log('=== VAPID KEYS ===');
-console.log('Public Key:', vapidKeys.publicKey);
-console.log('Private Key:', vapidKeys.privateKey);
-console.log('==================');
+
+// 先ほど生成されたVAPIDキーを固定設定
+const publicKey = 'BPSJBiHSKzcUTmd3WrDiXPRd_SUTOwg8PBl3iUbzThc3FqTsxpadgebGs2TscnM3gIe_cM2GJu4CzCUEA';
+const privateKey = 'OezFBL3U6sfqyYkV5EL0uSgoSob8xA0s_LsWu7zIN';
+
+webpush.setVapidDetails(
+  'mailto:example@example.com',
+  publicKey,
+  privateKey
+);
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
