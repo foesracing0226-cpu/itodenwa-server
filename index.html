@@ -97,15 +97,14 @@
       padding: 8px 2px;
       font-size: 0.75rem;
     }
-    .btn-orange { background-color: #ff9800; }
-    .btn-blue { background-color: #2196F3; }
+    .btn-orange { background-color: #888; } /* 最初はOFF色 */
+    .btn-blue { background-color: #888; }   /* 最初はOFF色 */
     .btn-purple { background-color: #9C27B0; }
     .btn-teal { background-color: #009688; }
     .btn-pink { background-color: #E91E63; }
 
-    /* --- チャットエリアのスタイル拡張 --- */
     .chat-box {
-      height: 200px; /* 縦幅を100pxから200pxに拡大 */
+      height: 200px;
       border: 1px solid #eee;
       border-radius: 12px;
       padding: 10px;
@@ -117,7 +116,6 @@
       gap: 8px;
     }
 
-    /* 左右のメッセージの親要素 */
     .chat-message {
       display: flex;
       flex-direction: column;
@@ -125,16 +123,15 @@
     }
 
     .chat-message.self {
-      align-self: flex-end; /* 自分は右寄せ */
+      align-self: flex-end;
       align-items: flex-end;
     }
 
     .chat-message.other {
-      align-self: flex-start; /* 相手は左寄せ */
+      align-self: flex-start;
       align-items: flex-start;
     }
 
-    /* 吹出しデザイン */
     .chat-bubble {
       padding: 8px 12px;
       border-radius: 12px;
@@ -224,8 +221,8 @@
     </div>
 
     <div class="controls">
-      <button id="micBtn" class="btn-orange" onclick="toggleMic()">🎙 マイク ON</button>
-      <button id="camBtn" class="btn-blue" onclick="toggleCam()">📹 カメラ ON</button>
+      <button id="micBtn" class="btn-orange" onclick="toggleMic()">🔇 マイク OFF</button>
+      <button id="camBtn" class="btn-blue" onclick="toggleCam()">📷 カメラ OFF</button>
       <button id="switchCamBtn" class="btn-purple" onclick="switchCamera()">🔄 切替</button>
       <button class="btn-pink" onclick="document.getElementById('cameraInput').click()">📷 撮影</button>
       <button class="btn-teal" onclick="document.getElementById('galleryInput').click()">🖼 アルバム</button>
@@ -234,7 +231,6 @@
       <input type="file" id="galleryInput" class="hidden-input" accept="image/*" onchange="sendImage(event)">
     </div>
 
-    <!-- チャットボックス -->
     <div class="chat-box" id="chatBox"></div>
 
     <div class="chat-input">
@@ -269,8 +265,8 @@
     let pc = null;
     let localStream = null;
     let roomId = null;
-    let isMicOn = true;
-    let isCamOn = true;
+    let isMicOn = false; // 最初はOFF
+    let isCamOn = false; // 最初はOFF
     let currentFacingMode = 'user';
 
     const configuration = {
@@ -374,13 +370,20 @@
           video: { facingMode: facingMode }
         });
         
+        // 取得直後に初期状態（OFF）に合わせてトラックを無効化
+        const audioTrack = localStream.getAudioTracks()[0];
+        if (audioTrack) audioTrack.enabled = isMicOn;
+
+        const videoTrack = localStream.getVideoTracks()[0];
+        if (videoTrack) videoTrack.enabled = isCamOn;
+
         document.getElementById('localVideo').srcObject = localStream;
 
         if (pc) {
-          const videoTrack = localStream.getVideoTracks()[0];
+          const vTrack = localStream.getVideoTracks()[0];
           const sender = pc.getSenders().find(s => s.track && s.track.kind === 'video');
           if (sender) {
-            sender.replaceTrack(videoTrack);
+            sender.replaceTrack(vTrack);
           }
         }
       } catch (err) {
@@ -489,7 +492,6 @@
       reader.readAsDataURL(file);
     }
 
-    /* テキストメッセージの追加（自分＝右、相手＝左） */
     function addChatMessage(text, senderType) {
       const chatBox = document.getElementById('chatBox');
       const msgDiv = document.createElement('div');
@@ -504,7 +506,6 @@
       chatBox.scrollTop = chatBox.scrollHeight;
     }
 
-    /* 画像メッセージの追加（自分＝右、相手＝左） */
     function addImageMessage(imgSrc, senderType) {
       const chatBox = document.getElementById('chatBox');
       const msgDiv = document.createElement('div');
