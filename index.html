@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title> 🧵 糸でんわ 📞</title>
+  <title>糸でんわ</title>
   <link rel="manifest" href="manifest.json">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -43,7 +43,7 @@
     }
     button {
       padding: 10px;
-      font-size: 1rem;
+      font-size: 0.9rem;
       font-weight: bold;
       border: none;
       border-radius: 8px;
@@ -89,17 +89,19 @@
     }
     .controls {
       display: flex;
-      gap: 8px;
+      gap: 6px;
     }
     .controls button {
       flex: 1;
-      font-size: 0.9rem;
+      padding: 8px 4px;
+      font-size: 0.8rem;
     }
     .btn-orange { background-color: #ff9800; }
     .btn-blue { background-color: #2196F3; }
+    .btn-purple { background-color: #9C27B0; }
     
     .chat-box {
-      height: 120px;
+      height: 100px;
       border: 1px solid #eee;
       border-radius: 8px;
       padding: 8px;
@@ -116,23 +118,24 @@
 <body>
 
   <div class="container">
-    <h1>🧵 糸でnわ 📞 (WebRTC)</h1>
+    <h1>🧵 糸でんわ 📞 (WebRTC)</h1>
     
     <input type="text" id="roomId" placeholder="ルームIDを入力 (例: 1234)">
     <button id="joinBtn" onclick="joinRoom()">ルームに参加 🏡</button>
     
     <div class="status" id="status">サーバーに接続中...</div>
 
-    <!-- 映像表示エリア（相手がメイン、自分が右下の小窓） -->
+    <!-- 映像表示エリア -->
     <div class="video-container">
       <video id="remoteVideo" autoplay playsinline></video>
       <video id="localVideo" autoplay playsinline muted></video>
     </div>
 
-    <!-- コントロールボタン -->
+    <!-- コントロールボタン（カメラ切り替えを追加） -->
     <div class="controls">
       <button id="micBtn" class="btn-orange" onclick="toggleMic()">🎙️ マイク ON</button>
       <button id="camBtn" class="btn-blue" onclick="toggleCam()">📹 カメラ ON</button>
+      <button id="switchCamBtn" class="btn-purple" onclick="switchCamera()">🔄 カメラ切替</button>
     </div>
 
     <!-- チャットエリア -->
@@ -150,13 +153,14 @@
     let roomId = null;
     let isMicOn = true;
     let isCamOn = true;
+    let currentFacingMode = 'user'; // 'user'=インカメ, 'environment'=アウトカメラ
 
     const configuration = {
       iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
     };
 
     ws.onopen = () => {
-      document.getElementById('status').innerText = 'サーバーに接続しました 📟 ルームIDを入力してください 💳';
+      document.getElementById('status').innerText = 'サーバーに接続しました 🗄️ ルームIDを入力してください 💳';
     };
 
     ws.onclose = () => {
@@ -181,11 +185,27 @@
       }
     };
 
-    async function startMedia() {
+    async function startMedia(facingMode = 'user') {
       try {
-        // カメラとマイクの両方を取得
-        localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+        if (localStream) {
+          localStream.getTracks().forEach(track => track.stop());
+        }
+
+        localStream = await navigator.mediaDevices.getUserMedia({
+          audio: true,
+          video: { facingMode: facingMode }
+        });
+        
         document.getElementById('localVideo').srcObject = localStream;
+
+        // 通話中の場合は映像トラックを相手側にもリアルタイム差し替え
+        if (pc) {
+          const videoTrack = localStream.getVideoTracks()[0];
+          const sender = pc.getSenders().find(s => s.track && s.track.kind === 'video');
+          if (sender) {
+            sender.replaceTrack(videoTrack);
+          }
+        }
       } catch (err) {
         console.error('メディア取得失敗:', err);
         document.getElementById('status').innerText = 'カメラ/マイクの許可が必要です。';
@@ -196,7 +216,7 @@
       roomId = document.getElementById('roomId').value.trim();
       if (!roomId) return alert('ルームIDを入力してください');
 
-      await startMedia();
+      await startMedia(currentFacingMode);
 
       ws.send(JSON.stringify({ type: 'join', room: roomId }));
       document.getElementById('status').innerText = `ルーム [${roomId}] に参加中...`;
@@ -248,6 +268,12 @@
         btn.innerText = isCamOn ? '📹 カメラ ON' : '📷 カメラ OFF';
         btn.style.backgroundColor = isCamOn ? '#2196F3' : '#888';
       }
+    }
+
+    // カメラのイン/アウト切り替え処理
+    async function switchCamera() {
+      currentFacingMode = (currentFacingMode === 'user') ? 'environment' : 'user';
+      await startMedia(currentFacingMode);
     }
 
     function sendMsg() {
