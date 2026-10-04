@@ -1,6 +1,6 @@
 const webpush = require('web-push');
 
-// VAPIDキーを固定設定
+// VAPIDキーの固定設定
 const publicKey = 'BPSJBiHSKzcUTmd3WrDiXPRd_SUTOwg8PBl3iUbzThc3FqTsxpadgebGs2TscnM3gIe_cM2GJu4CzCUEA-a02S8';
 const privateKey = 'OezFBL3U6sfqyYkV5EL0uSgoSob8xA0s_LsWu7zIN8I';
 
@@ -56,17 +56,30 @@ const server = http.createServer((req, res) => {
 const wss = new WebSocketServer({ server });
 const rooms = {};
 
-// プッシュ通知を送信する関数
-function sendPushNotification(title, body) {
+// プッシュ通知を送信する関数（senderEndpointを指定すれば自分を除外可能）
+function sendPushNotification(title, body, senderEndpoint = null) {
   const payload = JSON.stringify({ title, body });
+  
+  if (subscriptions.length === 0) {
+    console.log('【通知スキップ】登録されている通知宛先（subscriptions）がありません。');
+    return;
+  }
+
   subscriptions.forEach((sub, index) => {
-    webpush.sendNotification(sub, payload).catch(err => {
-      console.error('Push通知送信エラー:', err);
-      // 送信失敗した宛先は配列から削除
-      if (err.statusCode === 410 || err.statusCode === 404) {
-        subscriptions.splice(index, 1);
-      }
-    });
+    // 送信元本人の端末には通知を送らない（重複防止）
+    if (senderEndpoint && sub.endpoint === senderEndpoint) {
+      return;
+    }
+
+    webpush.sendNotification(sub, payload)
+      .then(() => console.log('【通知成功】Push通知を送信しました！'))
+      .catch(err => {
+        console.error('【通知エラー】Push通知送信失敗:', err.statusCode || err);
+        // 無効になった通知宛先（期限切れなど）は削除
+        if (err.statusCode === 410 || err.statusCode === 404) {
+          subscriptions.splice(index, 1);
+        }
+      });
   });
 }
 
@@ -79,8 +92,13 @@ wss.on('connection', (ws) => {
 
       if (data.type === 'subscribe') {
         // 通知用のサブスクリプション登録
-        if (!subscriptions.some(s => s.endpoint === data.subscription.endpoint)) {
+        ws.subscriptionEndpoint = data.subscription ? data.subscription.endpoint : null;
+        
+        if (data.subscription && !subscriptions.some(s => s.endpoint === data.subscription.endpoint)) {
           subscriptions.push(data.subscription);
+          console.log(`【登録完了】新しい通知宛先を登録しました！現在の件数: ${subscriptions.length}`);
+        } else {
+          console.log(`【登録済み】すでに登録されている宛先です。現在の件数: ${subscriptions.length}`);
         }
       } else if (data.type === 'join') {
         currentRoom = data.room;
@@ -88,9 +106,14 @@ wss.on('connection', (ws) => {
           rooms[currentRoom] = [];
         }
         rooms[currentRoom].push(ws);
+        console.log(`【ルーム参加】ルーム [${currentRoom}] に参加しました。`);
         
-        // 相手が参加してきたら通知を飛ばす
-        sendPushNotification('🧵 糸でんわ', `ルーム [${currentRoom}] に誰かが参加しました！`);
+        // 相手（＝自分以外の全登録端末）へ通知を飛ばす
+        sendPushNotification(
+          '🧵 糸でんわ', 
+          `相手がルーム（${currentRoom}）に参加しました！タップしてアプリを開いてください📞`,
+          ws.subscriptionEndpoint
+        );
       } else if (currentRoom && rooms[currentRoom]) {
         // 同じルームの他のユーザーへ転送
         rooms[currentRoom].forEach((client) => {
@@ -99,11 +122,11 @@ wss.on('connection', (ws) => {
           }
         });
 
-        // メッセージ受信時にも通知を飛ばす
+        // メッセージ受信時にも自分以外の登録端末へ通知を飛ばす
         if (data.type === 'text') {
-          sendPushNotification('💬 新しいメッセージ', data.text);
+          sendPushNotification('💬 新しいメッセージ', data.text, ws.subscriptionEndpoint);
         } else if (data.type === 'image') {
-          sendPushNotification('📷 画像が届きました', '相手から画像が送信されました！');
+          sendPushNotification('📷 画像が届きました', '相手から画像が送信されました！', ws.subscriptionEndpoint);
         }
       }
     } catch (e) {
