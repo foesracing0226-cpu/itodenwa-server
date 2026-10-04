@@ -103,20 +103,64 @@
     .btn-teal { background-color: #009688; }
     .btn-pink { background-color: #E91E63; }
 
+    /* --- チャットエリアのスタイル拡張 --- */
     .chat-box {
-      height: 100px;
+      height: 200px; /* 縦幅を100pxから200pxに拡大 */
       border: 1px solid #eee;
-      border-radius: 8px;
-      padding: 8px;
+      border-radius: 12px;
+      padding: 10px;
       overflow-y: auto;
       font-size: 0.85rem;
       background: #fafafa;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
     }
-    .chat-box img {
+
+    /* 左右のメッセージの親要素 */
+    .chat-message {
+      display: flex;
+      flex-direction: column;
+      max-width: 80%;
+    }
+
+    .chat-message.self {
+      align-self: flex-end; /* 自分は右寄せ */
+      align-items: flex-end;
+    }
+
+    .chat-message.other {
+      align-self: flex-start; /* 相手は左寄せ */
+      align-items: flex-start;
+    }
+
+    /* 吹出しデザイン */
+    .chat-bubble {
+      padding: 8px 12px;
+      border-radius: 12px;
+      word-break: break-word;
+      line-height: 1.4;
+    }
+
+    .chat-message.self .chat-bubble {
+      background-color: #4CAF50;
+      color: white;
+      border-bottom-right-radius: 2px;
+    }
+
+    .chat-message.other .chat-bubble {
+      background-color: #e0e0e0;
+      color: #333;
+      border-bottom-left-radius: 2px;
+    }
+
+    .chat-bubble img {
       max-width: 100%;
       border-radius: 8px;
       margin-top: 4px;
+      cursor: pointer;
     }
+
     .chat-input {
       display: flex;
       gap: 8px;
@@ -184,15 +228,17 @@
       <button id="camBtn" class="btn-blue" onclick="toggleCam()">📹 カメラ ON</button>
       <button id="switchCamBtn" class="btn-purple" onclick="switchCamera()">🔄 切替</button>
       <button class="btn-pink" onclick="document.getElementById('cameraInput').click()">📷 撮影</button>
-      <button class="btn-teal" onclick="document.getElementById('galleryInput').click()">🖼️ アルバム</button>
+      <button class="btn-teal" onclick="document.getElementById('galleryInput').click()">🖼 アルバム</button>
       
       <input type="file" id="cameraInput" class="hidden-input" accept="image/*" capture="environment" onchange="sendImage(event)">
       <input type="file" id="galleryInput" class="hidden-input" accept="image/*" onchange="sendImage(event)">
     </div>
 
+    <!-- チャットボックス -->
     <div class="chat-box" id="chatBox"></div>
+
     <div class="chat-input">
-      <input type="text" id="msgInput" placeholder="メッセージを入力...">
+      <input type="text" id="msgInput" placeholder="メッセージを入力..." onkeypress="handleKeyPress(event)">
       <button onclick="sendMsg()">💌</button>
     </div>
   </div>
@@ -231,7 +277,6 @@
       iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
     };
 
-    // WebSocket接続・再接続処理
     function connectWebSocket() {
       if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return;
 
@@ -265,24 +310,21 @@
         } else if (msg.type === 'candidate') {
           if (pc) await pc.addIceCandidate(new RTCIceCandidate(msg.candidate));
         } else if (msg.type === 'text') {
-          addChatMessage('相手: ' + msg.text);
+          addChatMessage(msg.text, 'other');
         } else if (msg.type === 'image') {
-          addImageMessage('相手', msg.image);
+          addImageMessage(msg.image, 'other');
         }
       };
     }
 
-    // 初回接続
     connectWebSocket();
 
-    // バックグラウンドから復帰した時に自動で再接続
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') {
         connectWebSocket();
       }
     });
 
-    // 通知登録関数
     async function initNotification() {
       const statusEl = document.getElementById('status');
 
@@ -414,6 +456,12 @@
       await startMedia(currentFacingMode);
     }
 
+    function handleKeyPress(e) {
+      if (e.key === 'Enter') {
+        sendMsg();
+      }
+    }
+
     function sendMsg() {
       const input = document.getElementById('msgInput');
       const text = input.value.trim();
@@ -422,7 +470,7 @@
       if (ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type: 'text', text }));
       }
-      addChatMessage('自分: ' + text);
+      addChatMessage(text, 'self');
       input.value = '';
     }
 
@@ -436,24 +484,42 @@
         if (ws && ws.readyState === WebSocket.OPEN) {
           ws.send(JSON.stringify({ type: 'image', image: base64Image }));
         }
-        addImageMessage('自分', base64Image);
+        addImageMessage(base64Image, 'self');
       };
       reader.readAsDataURL(file);
     }
 
-    function addChatMessage(msg) {
+    /* テキストメッセージの追加（自分＝右、相手＝左） */
+    function addChatMessage(text, senderType) {
       const chatBox = document.getElementById('chatBox');
-      const div = document.createElement('div');
-      div.innerText = msg;
-      chatBox.appendChild(div);
+      const msgDiv = document.createElement('div');
+      msgDiv.className = `chat-message ${senderType}`;
+
+      const bubble = document.createElement('div');
+      bubble.className = 'chat-bubble';
+      bubble.innerText = text;
+
+      msgDiv.appendChild(bubble);
+      chatBox.appendChild(msgDiv);
       chatBox.scrollTop = chatBox.scrollHeight;
     }
 
-    function addImageMessage(sender, imgSrc) {
+    /* 画像メッセージの追加（自分＝右、相手＝左） */
+    function addImageMessage(imgSrc, senderType) {
       const chatBox = document.getElementById('chatBox');
-      const div = document.createElement('div');
-      div.innerHTML = `<strong>${sender}:</strong><br><img src="${imgSrc}" style="cursor: pointer;" onclick="openModal('${imgSrc}')">`;
-      chatBox.appendChild(div);
+      const msgDiv = document.createElement('div');
+      msgDiv.className = `chat-message ${senderType}`;
+
+      const bubble = document.createElement('div');
+      bubble.className = 'chat-bubble';
+
+      const img = document.createElement('img');
+      img.src = imgSrc;
+      img.onclick = () => openModal(imgSrc);
+
+      bubble.appendChild(img);
+      msgDiv.appendChild(bubble);
+      chatBox.appendChild(msgDiv);
       chatBox.scrollTop = chatBox.scrollHeight;
     }
 
