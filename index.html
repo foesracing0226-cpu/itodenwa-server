@@ -396,6 +396,8 @@
       roomId = document.getElementById('roomId').value.trim();
       if (!roomId) return alert('ルームIDを入力してください');
 
+      await initNotification();
+      
       await startMedia(currentFacingMode);
 
       if (ws && ws.readyState === WebSocket.OPEN) {
