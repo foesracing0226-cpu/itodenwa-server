@@ -1,9 +1,8 @@
 const webpush = require('web-push');
 
 // VAPIDキーの固定設定
-const publicKey = 'BLNKgqUGJAS6rCZ-Spi5hJiG6P2rLgXfpbBWn1C3H-99SJvj_iHg_cAU8x1bxdw4S1F72i-8vf4xqjs-FQx9PAU';
-const privateKey = 'LG6o-BwujgD_WCEOMzWEV65Dz99m1nXNu7MA-jZU6zo';
-
+const publicKey = process.env.VAPID_PUBLIC_KEY;
+const privateKey = process.env.VAPID_PRIVATE_KEY;
 webpush.setVapidDetails(
   'mailto:example@gmail.com',
   publicKey,
