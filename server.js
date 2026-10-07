@@ -1,8 +1,8 @@
 const webpush = require('web-push');
 
 // VAPIDキーの固定設定
-const publicKey = 'BDxFmtYhZymkxU0xlT6TP5K3-7wahGajI7U__nES7NLNmldS9AOFgh4AXyDjWTgXoyuMfQ9hw-QAeORSVDlUhd0';
-const privateKey = 'p_r1b1Q9gXeIHM457uc4pz1NK0EiRn-u51jQKnVUGbg';
+const publicKey = 'BLNKgqUGJAS6rCZ-Spi5hJiG6P2rLgXfpbBWn1C3H-99SJvj_iHg_cAU8x1bxdw4S1F72i-8vf4xqjs-FQx9PAU';
+const privateKey = 'LG6o-BwujgD_WCEOMzWEV65Dz99m1nXNu7MA-jZU6zo';
 
 webpush.setVapidDetails(
   'mailto:example@gmail.com',
